@@ -1,33 +1,47 @@
 import os
-import h5py
+import requests
+from blimpy import Waterfall
 import numpy as np
 
-# Enter the exact filename of the downloaded .h5 file from the Berkeley table
-SETI_FILE = "your_downloaded_file.h5"
+# Oficjalny link do archiwum Breakthrough Listen: Obiekt 'Oumuamua
+SETI_URL = "http://blpd0.ssl.berkeley.edu/oumuamua/spliced_blc0001020304050607_guppi_58100_78802_OUMUAMUA_0011.gpuspec.0002.fil"
+SETI_FILE = "oumuamua_target.fil"
 
-def verify_local_archive(filepath=SETI_FILE):
+def verify_local_archive(url=SETI_URL, filepath=SETI_FILE):
     """
-    Sovereign (Local) version.
-    Verifies the existence of the physical file on the working disk.
+    Pobiera plik .fil z międzygwiazdowego archiwum Berkeley, jeśli nie ma go lokalnie.
     """
-    if not os.path.exists(filepath):
-        print(f"[!] PHYSICAL ERROR: File '{filepath}' not found.")
-        print("[!] Place the downloaded HDF5 file in the script directory.")
-        exit(1)
+    if os.path.exists(filepath):
+        print(f"[BRIDGE] Plik telemetrii Oumuamua znajduje się lokalnie: {filepath}")
+        return filepath
         
-    print(f"[BRIDGE] Authorizing access to local cosmic archive: {filepath}")
+    print(f"[BRIDGE] Pobieranie danych z międzygwiazdowego strumienia: {url}...")
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    
+    with requests.get(url, stream=True, headers=headers) as r:
+        r.raise_for_status()
+        with open(filepath, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=1024*1024): # Paczki po 1 MB
+                if chunk:
+                    f.write(chunk)
+                    
+    print("[BRIDGE] Pobieranie zakończone pomyślnie.")
     return filepath
 
 def extract_h5py_matrix(filepath):
     """
-    Extracts the stochastic matrix directly from the HDF5 file.
+    Ekstrakcja macierzy wodospadowej z pliku Filterbank (.fil) przy użyciu blimpy.
+    (Zachowano nazwę funkcji dla pełnej kompatybilności z lixism_core.py).
     """
-    print("[BRIDGE] Low-level state-space matrix extraction...")
-    with h5py.File(filepath, 'r') as f:
-        raw_data_matrix = f['data'][:]
+    print("[BRIDGE] Ładowanie struktury Filterbank (.fil) przez blimpy...")
     
-    matrix_2d = np.squeeze(raw_data_matrix)
-    print(f"[BRIDGE] Extraction successful. Physical matrix shape: {matrix_2d.shape}")
+    # Inicjalizacja obiektu Waterfall z biblioteki blimpy
+    observer = Waterfall(filepath)
+    
+    # Wyciągnięcie i spłaszczenie do macierzy 2D (czas x częstotliwość)
+    matrix_2d = np.squeeze(observer.data)
+    
+    print(f"[BRIDGE] Ekstrakcja udana. Fizyczny kształt macierzy Oumuamua: {matrix_2d.shape}")
     return matrix_2d
 
 if __name__ == "__main__":
