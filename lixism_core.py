@@ -4,10 +4,13 @@ import numpy as np
 from z3 import *
 from seti_bridge import pobierz_telemetrie, ekstrahuj_macierz
 
-# Zabezpieczenie czasowe (ok. 5.5h)
-MAX_CZAS_PRACY_SEKUNDY = 19800 
+MAX_CZAS_PRACY_SEKUNDY = 19800 # Zabezpieczenie przed limitem 6h GitHuba
 
 def szybki_watchdog(wektor, prog_odchylenia=2.5):
+    """
+    Filtr pre-kognitywny L0-ISM.
+    Odrzuca płaski szum tła. Przepuszcza anomalie do sprzętowej gilotyny Z3.
+    """
     srednia = np.mean(wektor)
     odchylenie_std = np.std(wektor)
     
@@ -20,6 +23,9 @@ def szybki_watchdog(wektor, prog_odchylenia=2.5):
     return False
 
 def kwantyzacja_lixism(wektor_stochastyczny):
+    """
+    Kwantyzuje amplitudę do siatki Z_19 z barierą fizyczną od -9 do +9.
+    """
     min_val = np.min(wektor_stochastyczny)
     max_val = np.max(wektor_stochastyczny)
     
@@ -30,6 +36,9 @@ def kwantyzacja_lixism(wektor_stochastyczny):
     return np.round(znormalizowany).astype(int)
 
 def weryfikator_z3_lixism(wektor_z19):
+    """
+    Solver SMT Z3. Weryfikuje domknięcie O(1) w punkcie zero.
+    """
     solver = Solver()
     stany = [Int(f'L_{i}') for i in range(len(wektor_z19))]
     
@@ -75,8 +84,6 @@ def uruchom_skaner_kosmosu():
                 continue
                 
             wektor_z19 = kwantyzacja_lixism(wektor_okna)
-            
-            # Właściwe umiejscowienie licznika
             analizy_z3 += 1
             
             if weryfikator_z3_lixism(wektor_z19):
