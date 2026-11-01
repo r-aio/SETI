@@ -29,3 +29,18 @@ jobs:
     - name: Aktywacja skanera przestrzeni stanów (Continuous Mode)
       run: |
         python lixism_core.py
+
+    - name: Aktywacja skanera przestrzeni stanów (Continuous Mode)
+      run: |
+        python lixism_core.py
+
+    - name: Zapisz dowód fizyczny (Artefakt)
+      if: failure() # Uruchomi się TYLKO, gdy skrypt wymusi błąd (czyli znajdzie sygnał)
+      uses: actions/upload-artifact@v3
+      with:
+        name: lixism-dowod-odkrycia
+        path: WYKRYTY_SYGNAL_LIXISM.txt
+
+
+
+
