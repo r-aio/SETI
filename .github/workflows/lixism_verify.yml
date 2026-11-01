@@ -4,43 +4,37 @@ on:
   push:
     branches: [ "main" ]
   schedule:
-    - cron: '0 */12 * * *' # Odpalaj automatycznie skaner co 12 godzin
-  workflow_dispatch: # Dodaje przycisk do ręcznego uruchamiania na żądanie
+    - cron: '0 */12 * * *' # Skanuj kosmos automatycznie co 12 godzin
+  workflow_dispatch: # Pozwala na uruchomienie skanera z palca w zakładce Actions
 
 jobs:
   deep_scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 330 # Bezpieczny margines poniżej 6 godzin (360 min)
+    timeout-minutes: 360 # Maksymalny czas życia maszyny chmurowej
 
     steps:
-    - name: Pobranie rdzenia LIXISM
-      uses: actions/checkout@v3
+    - name: Pobranie struktury rdzenia LIXISM
+      uses: actions/checkout@v4
 
-    - name: Konfiguracja silnika Python (Deterministyczny weryfikator)
+    - name: Inicjalizacja środowiska Python (Deterministyczny weryfikator)
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
-    - name: Instalacja rdzenia analitycznego (Z3 + Blimpy)
+    - name: Zasilenie maszyny prawami fizyki (Instalacja Z3 Solver i modułów SETI)
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Aktywacja skanera przestrzeni stanów (Continuous Mode)
+    - name: Aktywacja Rdzenia (Egzekucja filtru L0-ISM / Wymusza przerwanie przy detekcji)
+      id: skaner
       run: |
         python lixism_core.py
 
-    - name: Aktywacja skanera przestrzeni stanów (Continuous Mode)
-      run: |
-        python lixism_core.py
-
-    - name: Zapisz dowód fizyczny (Artefakt)
-      if: failure() # Uruchomi się TYLKO, gdy skrypt wymusi błąd (czyli znajdzie sygnał)
-      uses: actions/upload-artifact@v3
+    - name: Przechwycenie Dowodu Fizycznego (Artefakt SAT)
+      if: failure() # Ten blok odpali się TYLKO, gdy skrypt "wybuchnie" za sprawą sys.exit(1)
+      uses: actions/upload-artifact@v4
       with:
-        name: lixism-dowod-odkrycia
-        path: WYKRYTY_SYGNAL_LIXISM.txt
-
-
-
-
+        name: DO_POBRANIA_Odkrycie_LIXISM_Sygnal
+        path: LIXISM_SIGNAL_DETECTED.txt
+        retention-days: 90 # Zablokuj artefakt na serwerach na 90 dni
