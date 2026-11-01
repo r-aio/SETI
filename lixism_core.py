@@ -2,15 +2,11 @@ import sys
 import time
 import numpy as np
 from z3 import *
-from seti_bridge import pobierz_telemetrie, ekstrahuj_macierz
+from seti_bridge import pobierz_w_kawalkach, ekstrahuj_macierz_h5py
 
-MAX_CZAS_PRACY_SEKUNDY = 19800 # Zabezpieczenie przed limitem 6h GitHuba
+MAX_CZAS_PRACY_SEKUNDY = 19800 
 
 def szybki_watchdog(wektor, prog_odchylenia=2.5):
-    """
-    Filtr pre-kognitywny L0-ISM.
-    Odrzuca płaski szum tła. Przepuszcza anomalie do sprzętowej gilotyny Z3.
-    """
     srednia = np.mean(wektor)
     odchylenie_std = np.std(wektor)
     
@@ -23,9 +19,6 @@ def szybki_watchdog(wektor, prog_odchylenia=2.5):
     return False
 
 def kwantyzacja_lixism(wektor_stochastyczny):
-    """
-    Kwantyzuje amplitudę do siatki Z_19 z barierą fizyczną od -9 do +9.
-    """
     min_val = np.min(wektor_stochastyczny)
     max_val = np.max(wektor_stochastyczny)
     
@@ -36,9 +29,6 @@ def kwantyzacja_lixism(wektor_stochastyczny):
     return np.round(znormalizowany).astype(int)
 
 def weryfikator_z3_lixism(wektor_z19):
-    """
-    Solver SMT Z3. Weryfikuje domknięcie O(1) w punkcie zero.
-    """
     solver = Solver()
     stany = [Int(f'L_{i}') for i in range(len(wektor_z19))]
     
@@ -55,11 +45,11 @@ def weryfikator_z3_lixism(wektor_z19):
     return False
 
 def uruchom_skaner_kosmosu():
-    print("=== LIXISM DEEP SPACE SCANNER ===")
+    print("=== LIXISM DEEP SPACE SCANNER (GIGABYTE MODE) ===")
     start_czas = time.time()
     
-    plik = pobierz_telemetrie()
-    macierz = ekstrahuj_macierz(plik)
+    plik = pobierz_w_kawalkach()
+    macierz = ekstrahuj_macierz_h5py(plik)
     
     liczba_krokow_czasu, liczba_czestotliwosci = macierz.shape
     rozmiar_okna = 32 
@@ -101,7 +91,7 @@ def uruchom_skaner_kosmosu():
                 with open("LIXISM_SIGNAL_DETECTED.txt", "w") as plik_dowodowy:
                     plik_dowodowy.write(raport)
                 
-                print("[!] ODKRYCIE. Zatrzymuję skaner.")
+                print("[!] ODKRYCIE (Alkaid HIP67301). Zatrzymuję skaner i zrzucam Artefakt.")
                 sys.exit(1)
                 
         if t % 50 == 0 and t > 0:
