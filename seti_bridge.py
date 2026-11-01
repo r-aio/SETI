@@ -3,9 +3,10 @@ import requests
 from blimpy import Waterfall
 import numpy as np
 
-# Próbka danych SETI (Green Bank Telescope)
+# Plik kalibracyjny Voyagera 1 z Breakthrough Listen. 
+# Aby skanować pusty kosmos w poszukiwaniu obcych struktur, podmień ten URL.
 SETI_URL = "http://blpd0.ssl.berkeley.edu/Voyager_data/Voyager1.single_coarse.fine_res.h5"
-SETI_FILE = "kosmos_surowy.h5"
+SETI_FILE = "seti_raw_telemetry.h5"
 
 def pobierz_telemetrie(url=SETI_URL, plik=SETI_FILE):
     if not os.path.exists(plik):
@@ -17,15 +18,13 @@ def pobierz_telemetrie(url=SETI_URL, plik=SETI_FILE):
                     f.write(chunk)
         print("[BRIDGE] Zakończono pobieranie.")
     else:
-        print("[BRIDGE] Plik telemetrii już istnieje. Pomijam pobieranie.")
+        print("[BRIDGE] Plik telemetrii już istnieje lokalnie.")
     return plik
 
 def ekstrahuj_macierz(plik):
     print("[BRIDGE] Dekodowanie pliku HDF5 do macierzy wodospadowej...")
     obs = Waterfall(plik)
-    macierz_danych = obs.data # Zwraca macierz NumPy (Czas x Zasilanie x Częstotliwość)
-    
-    # Redukujemy macierz do 2D (Czas x Częstotliwość)
+    macierz_danych = obs.data 
     macierz_2d = np.squeeze(macierz_danych)
     print(f"[BRIDGE] Wyekstrahowano macierz stochastyczną o wymiarach: {macierz_2d.shape}")
     return macierz_2d
