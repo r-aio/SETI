@@ -1,47 +1,56 @@
 import os
 import requests
-from blimpy import Waterfall
+import pandas as pd
 import numpy as np
 
-# Oficjalny link do archiwum Breakthrough Listen: Obiekt 'Oumuamua
-SETI_URL = "http://blpd0.ssl.berkeley.edu/oumuamua/spliced_blc0001020304050607_guppi_58100_78802_OUMUAMUA_0011.gpuspec.0002.fil"
-SETI_FILE = "oumuamua_target.fil"
+# Oficjalny link do surowych danych CSV sygnału Wow! z repozytorium projektu Ohio-SETI
+WOW_CSV_URL = "https://raw.githubusercontent.com/planetaryhablab/Ohio-SETI/main/oseti_19770815_220410.csv"
+LOCAL_FILE = "oseti_19770815_220410.csv"
 
-def verify_local_archive(url=SETI_URL, filepath=SETI_FILE):
+def verify_local_archive(url=WOW_CSV_URL, filepath=LOCAL_FILE):
     """
-    Pobiera plik .fil z międzygwiazdowego archiwum Berkeley, jeśli nie ma go lokalnie.
+    Pobiera plik CSV z danymi sygnału Wow!, jeśli nie znajduje się on lokalnie.
     """
     if os.path.exists(filepath):
-        print(f"[BRIDGE] Plik telemetrii Oumuamua znajduje się lokalnie: {filepath}")
+        print(f"[BRIDGE] Plik archiwum sygnału Wow! jest dostępny lokalnie: {filepath}")
         return filepath
         
-    print(f"[BRIDGE] Pobieranie danych z międzygwiazdowego strumienia: {url}...")
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    print(f"[BRIDGE] Pobieranie historycznych danych sygnału Wow! z repozytorium: {url}...")
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     
-    with requests.get(url, stream=True, headers=headers) as r:
+    with requests.get(url, headers=headers) as r:
         r.raise_for_status()
         with open(filepath, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024*1024): # Paczki po 1 MB
-                if chunk:
-                    f.write(chunk)
+            f.write(r.content)
                     
-    print("[BRIDGE] Pobieranie zakończone pomyślnie.")
+    print("[BRIDGE] Pobieranie pliku danych Wow! zakończone pomyślnie.")
     return filepath
 
 def extract_h5py_matrix(filepath):
     """
-    Ekstrakcja macierzy wodospadowej z pliku Filterbank (.fil) przy użyciu blimpy.
-    (Zachowano nazwę funkcji dla pełnej kompatybilności z lixism_core.py).
+    Wczytuje plik CSV z danymi sygnału Wow! i konwertuje go do macierzy 2D 
+    kompatybilnej z rdzeniem lixism_core.py.
     """
-    print("[BRIDGE] Ładowanie struktury Filterbank (.fil) przez blimpy...")
+    print("[BRIDGE] Przetwarzanie tabeli danych Wow! do macierzy stochastycznej...")
     
-    # Inicjalizacja obiektu Waterfall z biblioteki blimpy
-    observer = Waterfall(filepath)
+    # Wczytanie pliku CSV za pomocą pandasa
+    df = pd.read_csv(filepath)
     
-    # Wyciągnięcie i spłaszczenie do macierzy 2D (czas x częstotliwość)
-    matrix_2d = np.squeeze(observer.data)
+    # Wyciągnięcie numerycznych kolumn sygnału / natężenia jako macierzy
+    # (system automatycznie konwertuje kolumny numeryczne na tablicę numpy)
+    numeric_df = df.select_dtypes(include=[np.number])
     
-    print(f"[BRIDGE] Ekstrakcja udana. Fizyczny kształt macierzy Oumuamua: {matrix_2d.shape}")
+    if numeric_df.empty:
+        # Awaryjnie, jeśli struktura wymaga konkretnej kolumny (np. natężenia/flux)
+        matrix_2d = df.values.astype(float)
+    else:
+        matrix_2d = numeric_df.values.astype(float)
+    
+    # Zapewnienie wymiaru 2D dla silnika analitycznego
+    if matrix_2d.ndim == 1:
+        matrix_2d = np.expand_dims(matrix_2d, axis=0)
+        
+    print(f"[BRIDGE] Ekstrakcja udana. Fizyczny kształt macierzy sygnału Wow!: {matrix_2d.shape}")
     return matrix_2d
 
 if __name__ == "__main__":
